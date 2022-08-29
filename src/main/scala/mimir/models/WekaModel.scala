@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.Logger
 import mimir.algebra._
 import mimir.ctables._
 import mimir.util.{RandUtils,TextUtils,Timer}
-import mimir.{Analysis, Database}
+import mimir.Database
 import moa.core.InstancesHeader
 import weka.core.{Attribute, DenseInstance, Instance, Instances}
 import weka.experiment.{DatabaseUtils, InstanceQueryAdapter}
@@ -25,15 +25,15 @@ object WekaModel
   val TRAINING_LIMIT = 10000
   val TOKEN_LIMIT = 100
 
-  def train(db: Database, name: String, cols: Seq[String], query:Operator): Map[String,(Model,Int,Seq[Expression])] = 
+  def train(db: Database, name: ID, cols: Seq[ID], query:Operator, humanReadableName: String): Map[ID,(Model,Int,Seq[Expression])] = 
   {
     cols.map( (col) => {
-      val modelName = s"$name:$col"
+      val modelName = ID(name,":",col)
       val model = 
         db.models.getOption(modelName) match {
           case Some(model) => model
           case None => {
-            val model = new SimpleWekaModel(modelName, col, query)
+            val model = new SimpleWekaModel(modelName, col, db.typechecker.schemaOf(query), query)
             model.train(db)
             db.models.persist(model)
             model
@@ -48,12 +48,12 @@ object WekaModel
     }).toMap
   }
 
-  def getStringAttribute(db: Database, col: String, query: Operator): Attribute =
+  def getStringAttribute(db: Database, col: ID, query: Operator): Attribute =
   {
     val tokens: Set[String] =
       db.query(
         Limit(0, Some(TOKEN_LIMIT),
-          Project(List(ProjectArg("V", Var(col))), query)
+          Project(List(ProjectArg(ID("V"), Var(col))), query)
         )
       ) { result =>
         result.foldLeft(Set[String]()) { (ret, curr) => 
@@ -68,9 +68,9 @@ object WekaModel
     new Attribute(col, tokenList)
   }
 
-  def getAttributes(db: Database, query: Operator): Seq[Attribute] =
+  def getAttributes(db: Database, schema:Seq[(ID, Type)], query: Operator): Seq[Attribute] =
   {
-    db.typechecker.schemaOf(query).map({
+    schema.map({
       // case (col, TInt() | TFloat() | TDate()) => new Attribute(col)
       case (col, _) => getStringAttribute(db, col, query)
     })
@@ -78,14 +78,15 @@ object WekaModel
 }
 
 @SerialVersionUID(1001L)
-class SimpleWekaModel(name: String, colName: String, query: Operator)
+class SimpleWekaModel(name: ID, colName: ID, val schema:Seq[(ID, Type)], query: Operator)
   extends Model(name) 
   with NeedsReconnectToDatabase 
   with SourcedFeedback
 {
   var numSamples = 0
   var numCorrect = 0
-  val colIdx:Int = query.columnNames.indexOf(colName)
+  val columns = schema.map{_._1}
+  val colIdx:Int = columns.indexOf(colName)
   var attributeMeta: java.util.ArrayList[Attribute] = null
   
   /**
@@ -159,7 +160,7 @@ class SimpleWekaModel(name: String, colName: String, query: Operator)
       val trainingQuery = Limit(0, Some(WekaModel.TRAINING_LIMIT), query)
       WekaModel.logger.debug(s"TRAINING ON: \n$trainingQuery")
       db.query(trainingQuery) { iterator => 
-        attributeMeta = new java.util.ArrayList(WekaModel.getAttributes(db, query))
+        attributeMeta = new java.util.ArrayList(WekaModel.getAttributes(db, schema, query))
         val data = new Instances("TrainData", attributeMeta, WekaModel.TRAINING_LIMIT)
 
         for( row <- iterator.take(WekaModel.TRAINING_LIMIT) ){

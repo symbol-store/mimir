@@ -100,6 +100,7 @@ object ModelRegistry
    */
   val imputations = Map[ID,ImputationConstructor](
     (ID("SPARKML") -> (SparkClassifierModel.train _))
+    //(ID("WEKA") -> (WekaModel.train _))
     // (ID("INTERPOLATE") -> (SeriesMissingValueModel.train _))
     //("FUNCDEP" -> (FuncDepModel.train _))
   )
