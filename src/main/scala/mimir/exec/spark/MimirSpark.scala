@@ -124,7 +124,8 @@ object MimirSpark
         .config("spark.hadoop.fs.defaultFS", s"hdfs://$sparkHost:$hdfsPort")
         .config("spark.driver.extraJavaOptions", s"-Dderby.system.home=${new File(dataDir).getAbsolutePath}")
         .config("spark.sql.warehouse.dir", s"${new File(dataDir).getAbsolutePath}/spark-warehouse")
-        .config("spark.hadoop.javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${new File(dataDir).getAbsolutePath}/metastore_db;create=true")   
+        .config("spark.hadoop.javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${new File(dataDir).getAbsolutePath}/metastore_db;create=true")
+        .config("spark.jars", "target/scala-2.12/mimir-core_2.12-0.3.2.jar") // fix for "cannot assign instance of java.lang.invoke.SerializedLambda"
     }
     else if(!localSpark){
       installAndRunSpark(config)
@@ -143,7 +144,8 @@ object MimirSpark
         .config("spark.kryoserializer.buffer.max", "1536m")
         .config("spark.driver.extraJavaOptions", s"-Dderby.system.home=${new File(dataDir).getAbsolutePath}")
         .config("spark.sql.warehouse.dir", s"${new File(dataDir).getAbsolutePath}/spark-warehouse")
-        .config("spark.hadoop.javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${new File(dataDir).getAbsolutePath}/metastore_db;create=true")   
+        .config("spark.hadoop.javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${new File(dataDir).getAbsolutePath}/metastore_db;create=true")
+        .config("spark.jars", "target/scala-2.12/mimir-core_2.12-0.3.2.jar") // fix for "cannot assign instance of java.lang.invoke.SerializedLambda"
     }
     else{
       SparkSession.builder.master("local[*]")
@@ -153,6 +155,7 @@ object MimirSpark
         .config("spark.driver.extraJavaOptions", s"-Dderby.system.home=$dataDir")
         .config("spark.sql.warehouse.dir", s"${new File(dataDir).getAbsolutePath}/spark-warehouse")
         .config("spark.hadoop.javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${new File(dataDir).getAbsolutePath}/metastore_db;create=true")
+        .config("spark.jars", "target/scala-2.12/mimir-core_2.12-0.3.2.jar") // fix for "cannot assign instance of java.lang.invoke.SerializedLambda"
     }).config(new SparkConf().registerKryoClasses(SparkUtils.getSparkKryoClasses()))
     sparkSession = sparkBuilder.getOrCreate
     val sparkCtx = sparkSession.sparkContext////new SparkContext(conf)
@@ -169,7 +172,7 @@ object MimirSpark
       //sparkCtx.hadoopConfiguration.set("hive.metastore.warehouse.dir",s"${hdfsPath}metastore_db")
 
       val requiredJars = Seq(
-        ("info.mimirdb",               "mimir-core",                 mimirVersion,      true),
+        //("info.mimirdb", "mimir-core", mimirVersion, true), // seems not working (missing 'target/scala-2.12/' in the path?)
         ("com.typesafe.scala-logging", "scala-logging",              "3.9.2",           true),
         ("com.typesafe.play",          "play-json",                  "2.7.0-M1",        true),
         ("com.typesafe.play",          "play-functional",            "2.7.0-M1",        true),
