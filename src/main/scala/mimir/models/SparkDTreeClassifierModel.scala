@@ -39,13 +39,13 @@ import org.apache.spark.sql.types.{IntegerType, DoubleType, FloatType, StringTyp
 import mimir.exec.spark.RAToSpark
 import org.apache.spark.sql.execution.SparkPlan
 
-object SparkClassifierModel
+object SparkDTreeClassifierModel
 {
   val logger = Logger(org.slf4j.LoggerFactory.getLogger(getClass.getName))
   val TRAINING_LIMIT = 1000
   val TOKEN_LIMIT = 100
   
-  def availableSparkModels = Map("Classification" -> (Classification, Classification.NaiveBayesMulticlassModel _), "Regression" -> (Regression, Regression.GeneralizedLinearRegressorModel _))
+  def availableSparkModels = Map("Classification" -> (Classification, Classification.DecisionTreeMulticlassModel _), "Regression" -> (Regression, Regression.GeneralizedLinearRegressorModel _))
   
   def train(db: Database, name: ID, cols: Seq[ID], query:Operator, humanReadableName: String): Map[ID,(Model,Int,Seq[Expression])] = 
   {
@@ -58,7 +58,7 @@ object SparkClassifierModel
         db.models.getOption(modelName) match {
           case Some(model) => model
           case None => {
-            val model = new SimpleSparkClassifierModel(modelName, column, db.typechecker.schemaOf(query), humanReadableName)
+            val model = new SimpleSparkDTreeClassifierModel(modelName, column, db.typechecker.schemaOf(query), humanReadableName)
             trainModel(db, query, model, modelHT.filter(isnull(col(column.id))))
             model
           }
@@ -75,7 +75,7 @@ object SparkClassifierModel
     /**
    * When the model is created, learn associations from the existing data.
    */
-  def trainModel(db:Database, query:Operator, model:SimpleSparkClassifierModel, dfwProv:DataFrame)
+  def trainModel(db:Database, query:Operator, model:SimpleSparkDTreeClassifierModel, dfwProv:DataFrame)
   {
     logger.trace(s"Query: \n$query")
     model.sparkMLInstanceType = model.guessSparkModelType(model.guessInputType) 
@@ -84,7 +84,7 @@ object SparkClassifierModel
             query.filter(Not(IsNullExpression(Var(model.colName)))))
     val trainingDataF = db.compiler.compileToSparkWithRewrites(trainingQuery)
     val trainingData = trainingDataF.schema.fields.filter(col => Seq(DateType, TimestampType).contains(col.dataType)).foldLeft(trainingDataF)((init, cur) => init.withColumn(cur.name,init(cur.name).cast(LongType)) )
-    val (sparkMLInstance, sparkMLModelGenerator) = availableSparkModels.getOrElse(model.sparkMLInstanceType, (Classification, Classification.NaiveBayesMulticlassModel _))
+    val (sparkMLInstance, sparkMLModelGenerator) = availableSparkModels.getOrElse(model.sparkMLInstanceType, (Classification, Classification.DecisionTreeMulticlassModel _))
     Timer.monitor(s"Train ${model.name}.${model.colName}", SparkClassifierModel.logger.info(_)){
       val classifier = sparkMLModelGenerator(trainingData)(ModelParams(db, model.colName, "keep"))
       model.learner = Some(classifier)
@@ -111,7 +111,7 @@ object SparkClassifierModel
 }
 
 @SerialVersionUID(1001L)
-class SimpleSparkClassifierModel(name: ID, val colName:ID, val schema:Seq[(ID, Type)], humanReadableName: String)
+class SimpleSparkDTreeClassifierModel(name: ID, val colName:ID, val schema:Seq[(ID, Type)], humanReadableName: String)
   extends Model(name) 
   with SourcedFeedback
   with ModelCache
@@ -228,7 +228,7 @@ class SimpleSparkClassifierModel(name: ID, val colName:ID, val schema:Seq[(ID, T
       case None => 
         getCache(idx, args, hints) match {
           case None => s"I defaulted to fixing $humanReadableName.$colName by replacing ${hints(colIdx)} with ${classToPrimitive("0")} on row $rowid"
-          case Some(elem) => s"I used a Bayes classifier to fix $humanReadableName.$colName by replacing ${hints(colIdx)} with $elem on row $rowid"
+          case Some(elem) => s"I used a Decision Tree classifier to fix $humanReadableName.$colName by replacing ${hints(colIdx)} with $elem on row $rowid"
         }
     }
     } catch {

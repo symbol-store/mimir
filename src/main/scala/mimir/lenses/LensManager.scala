@@ -15,8 +15,11 @@ class LensManager(db: Database) extends LazyLogging {
 
   val lensTypes = Map[ID,((Database,ID,String,Operator,Seq[Expression]) => 
                               (Operator,TraversableOnce[Model]))](
-    ID("MISSING_VALUE")     -> MissingValueLens.create _,
-    ID("DOMAIN")            -> MissingValueLens.create _,
+    ID("HOT_DECK")          -> MissingValueLens_HotDeck.create _,
+    ID("MEAN")              -> MissingValueLens_Mean.create _,
+    ID("DECISION_TREE")     -> MissingValueLens_DTree.create _,
+    ID("MISSING_VALUE")     -> MissingValueLens_Default.create _,
+    ID("DOMAIN")            -> MissingValueLens_Default.create _,
     ID("KEY_REPAIR")        -> RepairKeyLens.create _,
     ID("REPAIR_KEY")        -> RepairKeyLens.create _,
     ID("COMMENT")           -> CommentLens.create _,

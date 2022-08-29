@@ -104,6 +104,18 @@ object ModelRegistry
     //("FUNCDEP" -> (FuncDepModel.train _))
   )
 
+  val hotdeck_imputations = Map[ID,ImputationConstructor](
+    //(ID("HOTDECK") -> (HotDeckModel.train _))
+  )
+
+  val mean_imputations = Map[ID,ImputationConstructor](
+    //(ID("MEAN") -> (MeanModel.train _))
+  )
+
+  val dtree_imputations = Map[ID,ImputationConstructor](
+    (ID("DTREE") -> (SparkDTreeClassifierModel.train _))
+  )
+
   /**
    * Constructors for existing SchemaMatch models
    *

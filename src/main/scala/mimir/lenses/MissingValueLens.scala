@@ -15,8 +15,8 @@ import scala.collection.JavaConversions._
 import scala.util._
 import com.typesafe.scalalogging.LazyLogging
 
-
-object MissingValueLens extends LazyLogging {
+trait MissingValueLens extends LazyLogging {
+  def getModel():Map[ID,ModelRegistry.ImputationConstructor]
 
   def getConstraint(arg: Expression): Seq[(ID, Expression)] =
   {
@@ -96,7 +96,7 @@ object MissingValueLens extends LazyLogging {
     logger.trace(s"Safe query: ${noErroneousValuesQuery}")
 
     val modelsByType: Seq[(ID, Seq[(ID, (Model, Int, Seq[Expression]))])] =
-      ModelRegistry.imputations.toSeq.map {
+      getModel().toSeq.map {
         case ( 
           modelCategory: ID, 
           constructor: ModelRegistry.ImputationConstructor
@@ -173,3 +173,9 @@ object MissingValueLens extends LazyLogging {
 
 }
 
+object MissingValueLens_Default extends MissingValueLens {
+  override def getModel():Map[ID,ModelRegistry.ImputationConstructor] =
+  {
+    ModelRegistry.imputations
+  }
+}
