@@ -130,10 +130,9 @@ resolvers += Resolver.mavenLocal
 
 updateOptions := updateOptions.value.withGigahorse(false)
 
-dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.9.10"
-dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.10"
-dependencyOverrides += "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % "2.9.10"
-
+dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.10.0"
+dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.10.0"
+dependencyOverrides += "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % "2.10.0"
 
 libraryDependencies ++= Seq(
   ////////////////////// Command-Line Interface Utilities //////////////////////
@@ -338,9 +337,8 @@ assemblyMergeStrategy in assembly := {
   case nettyMeta() => MergeStrategy.last
   case "plugin.properties" => MergeStrategy.last
   case "log4j.properties" => MergeStrategy.last
-  case x =>
-    val oldStrategy = (assemblyMergeStrategy in assembly).value
-    oldStrategy(x)
+  case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
+  case x => MergeStrategy.first
 }
 
 
